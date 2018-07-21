@@ -12,10 +12,6 @@ const UglifyJsPlugin = require("uglifyjs-webpack-plugin");
 const _ = require("lodash");
 
 function createHTTPSConfig() {
-  if (process.env.NODE_ENV === "production") {
-    return false;
-  }
-
   // Generate certs for the local webpack-dev-server.
   if (fs.existsSync(path.join(__dirname, "certs"))) {
     const key = fs.readFileSync(path.join(__dirname, "certs", "key.pem"));
@@ -77,7 +73,7 @@ class LodashTemplatePlugin {
   }
 }
 
-const config = {
+module.exports = (env, argv) => ({
   entry: {
     index: path.join(__dirname, "src", "index.js"),
     hub: path.join(__dirname, "src", "hub.js"),
@@ -89,8 +85,7 @@ const config = {
     filename: "assets/js/[name]-[chunkhash].js",
     publicPath: process.env.BASE_ASSETS_PATH || ""
   },
-  mode: "development",
-  devtool: process.env.NODE_ENV === "production" ? "source-map" : "inline-source-map",
+  devtool: argv.mode === "production" ? "source-map" : "inline-source-map",
   devServer: {
     open: false,
     https: createHTTPSConfig(),
@@ -156,7 +151,7 @@ const config = {
               loader: "css-loader",
               options: {
                 name: "[path][name]-[hash].[ext]",
-                minimize: process.env.NODE_ENV === "production",
+                minimize: argv.mode === "production",
                 localIdentName: "[name]__[local]__[hash:base64:5]",
                 camelCase: true
               }
@@ -173,7 +168,7 @@ const config = {
             loader: "css-loader",
             options: {
               name: "[path][name]-[hash].[ext]",
-              minimize: process.env.NODE_ENV === "production",
+              minimize: argv.mode === "production",
               localIdentName: "[name]__[local]__[hash:base64:5]",
               camelCase: true
             }
@@ -250,7 +245,7 @@ const config = {
     // Extract required css and add a content hash.
     new ExtractTextPlugin({
       filename: "assets/stylesheets/[name]-[contenthash].css",
-      disable: process.env.NODE_ENV !== "production"
+      disable: argv.mode !== "production"
     }),
     // Transform the output of the html-loader using _.template
     // before passing the result to html-webpack-plugin
@@ -258,7 +253,7 @@ const config = {
       // expose these variables to the lodash template
       // ex: <%= ORIGIN_TRIAL_TOKEN %>
       imports: {
-        NODE_ENV: process.env.NODE_ENV,
+        NODE_ENV: argv.mode,
         ORIGIN_TRIAL_EXPIRES: process.env.ORIGIN_TRIAL_EXPIRES,
         ORIGIN_TRIAL_TOKEN: process.env.ORIGIN_TRIAL_TOKEN
       }
@@ -266,7 +261,7 @@ const config = {
     // Define process.env variables in the browser context.
     new webpack.DefinePlugin({
       "process.env": JSON.stringify({
-        NODE_ENV: process.env.NODE_ENV,
+        NODE_ENV: argv.mode,
         JANUS_SERVER: process.env.JANUS_SERVER,
         DEV_RETICULUM_SERVER: process.env.DEV_RETICULUM_SERVER,
         ASSET_BUNDLE_SERVER: process.env.ASSET_BUNDLE_SERVER,
@@ -274,6 +269,4 @@ const config = {
       })
     })
   ]
-};
-
-module.exports = config;
+});
